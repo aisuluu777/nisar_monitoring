@@ -1,0 +1,19 @@
+# Пилотные районы: по два крупнейших района (по площади) в каждой области.
+# Границы: geoBoundaries KGZ ADM2 (2010, CC BY-SA 3.0) — data/boundaries/adm2.geojson.
+# Для боевой версии заменить на официальные границы от заказчика.
+cell_size_km: 5
+districts:
+  - {id: batken,      name: Batken,     name_ru: Баткенский,     oblast: Баткенская}
+  - {id: kadamjay,    name: Kadamjay,   name_ru: Кадамжайский,   oblast: Баткенская}
+  - {id: alay,        name: Alay,       name_ru: Алайский,       oblast: Ошская}
+  - {id: kara-kulja,  name: Kara-Kulja, name_ru: Кара-Кульджинский, oblast: Ошская}
+  - {id: toktogul,    name: Toktogul,   name_ru: Токтогульский,  oblast: Джалал-Абадская}
+  - {id: chatkal,     name: Chatkal,    name_ru: Чаткальский,    oblast: Джалал-Абадская}
+  - {id: at-bashy,    name: At-Bashy,   name_ru: Ат-Башинский,   oblast: Нарынская}
+  - {id: naryn,       name: Naryn,      name_ru: Нарынский,      oblast: Нарынская}
+  - {id: jeti-oguz,   name: Jeti-Oguz,  name_ru: Джети-Огузский, oblast: Иссык-Кульская}
+  - {id: ak-suu,      name: Ak-Suu,     name_ru: Ак-Суйский,     oblast: Иссык-Кульская}
+  - {id: talas,       name: Talas,      name_ru: Таласский,      oblast: Таласская}
+  - {id: kara-buura,  name: Kara-Buura, name_ru: Кара-Бууринский, oblast: Таласская}
+  - {id: panfilov,    name: Panfilov,   name_ru: Панфиловский,   oblast: Чуйская}
+  - {id: kemin,       name: Kemin,      name_ru: Кеминский,      oblast: Чуйская}

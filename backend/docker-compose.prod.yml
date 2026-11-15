@@ -1,0 +1,14 @@
+# Прод-надстройка: наружу открыт только веб (порт 80), БД и API доступны лишь внутри сети compose.
+# Запуск: docker compose -f docker-compose.yml -f docker-compose.prod.yml up -d --build
+services:
+  db:
+    ports: !reset []
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD:?задайте DB_PASSWORD в .env рядом с compose}
+  api:
+    ports: !reset []
+    environment:
+      DATABASE_URL: postgresql+psycopg://monitor:${DB_PASSWORD}@db:5432/monitor
+    restart: unless-stopped
+  web:
+    restart: unless-stopped
