@@ -7,6 +7,7 @@ import { AboutPage, SummaryPage, SystemPage, TypographyPage } from "./pages/Info
 import { LandingPage } from "./pages/LandingPage";
 import { LoginPage } from "./pages/LoginPage";
 import { MapPage } from "./pages/MapPage";
+import { Story } from "./components/Story";
 import { TodayPage } from "./pages/TodayPage";
 import { useStore, useT } from "./store";
 
@@ -103,6 +104,7 @@ export function App() {
         <BottomNav />
       </div>
       <Tour />
+      <Story />
     </>
   );
 }

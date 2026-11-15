@@ -57,8 +57,8 @@ export function LoginPage() {
   const [demo, setDemo] = useState<Demo[]>([]);
 
   useEffect(() => {
-    if (meta?.data_mode === "demo")
-      api.GET("/api/v1/auth/demo-accounts").then(unwrap).then(setDemo).catch(() => setDemo([]));
+    // демо-база или локальный снимок для хакатона; сервер сам решает, можно ли показывать
+    api.GET("/api/v1/auth/demo-accounts").then(unwrap).then(setDemo).catch(() => setDemo([]));
   }, [meta?.data_mode]);
 
   async function submit(u: string, p: string) {

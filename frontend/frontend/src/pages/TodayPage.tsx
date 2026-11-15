@@ -123,7 +123,7 @@ export function TodayPage() {
               </div>
               {data.off_season && (
                 <div className="offseason">
-                  {t("today.off_season", { reason: data.season_note ?? t("today.off_reason"), date: data.shown_cycle ?? "—" })}
+                  {t("today.off_season", { reason: meta?.object_kind === "glacier" ? t("today.off_reason_glacier") : t("today.off_reason"), date: data.shown_cycle ?? "—" })}
                 </div>
               )}
               <div className="meta">{t("today.map_hint")}</div>
@@ -137,7 +137,15 @@ export function TodayPage() {
               <span className="ok" aria-hidden="true">
                 ✓
               </span>
-              <p style={{ margin: 0 }}>{t("today.empty", { date: data.next_expected ?? "—" })}</p>
+              <p style={{ margin: 0 }}>
+                {data.off_season || (data.counts.grey ?? 0) > 0
+                  ? t("today.empty_off", {
+                      date: data.shown_cycle ?? "—",
+                      grey: data.counts.grey ?? 0,
+                      n: Object.values(data.counts).reduce((x, y) => x + y, 0),
+                    })
+                  : t("today.empty", { date: data.next_expected ?? "—" })}
+              </p>
             </GlassPanel>
           )}
           {data?.tasks.map((task) => (

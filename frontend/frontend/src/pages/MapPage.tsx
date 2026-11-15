@@ -10,6 +10,7 @@ const ORDER: StatusCode[] = ["red", "yellow", "grey", "green"];
 /** Семейство продукта для бейджа слоя: ищем по ключевому слову в имени семейства. */
 const LAYER_KEY: Record<Exclude<DataLayer, "none" | "relief">, string[]> = {
   disp: [],
+  cum: [],
   sm: ["SME2"],
   precip: ["POWER", "IMERG"],
   veg: ["DIST"],
@@ -47,6 +48,43 @@ export function MapPage() {
   const [err, setErr] = useState<string | null>(null);
   const [steps, setSteps] = useState<Card["steps"] | null>(null);
   const [layersOpen, setLayersOpen] = useState(window.innerWidth > 760);
+  const [playing, setPlaying] = useState(false);
+  const [terrain, setTerrain] = useState(false);
+  const storyPlay = useStore((s) => s.storyPlay);
+
+  // «Машина времени»: проигрываем циклы подряд, слой — накопленное смещение
+  useEffect(() => {
+    if (!playing || !meta) return;
+    const id = window.setInterval(() => {
+      const s = useStore.getState();
+      const i = s.cycleIdx ?? 0;
+      if (i >= meta.cycles.length - 1) {
+        setPlaying(false);
+        return;
+      }
+      s.setCycleIdx(i + 1);
+    }, 900);
+    return () => window.clearInterval(id);
+  }, [playing, meta]);
+
+  function play() {
+    if (!meta) return;
+    if (playing) return setPlaying(false);
+    st.setDataLayer("cum");
+    st.setShowStatus(false);
+    const cur = st.cycleIdx ?? meta.cycles.length - 1;
+    if (cur >= meta.cycles.length - 1) st.setCycleIdx(Math.max(0, meta.cycles.length - 30));
+    setPlaying(true);
+  }
+
+  useEffect(() => {
+    if (storyPlay && meta) {
+      st.setDataLayer("cum");
+      st.setShowStatus(false);
+      st.setCycleIdx(Math.max(0, meta.cycles.length - 14));
+      setPlaying(true);
+    }
+  }, [storyPlay]); // eslint-disable-line react-hooks/exhaustive-deps
 
   const get = useCallback(async (d: string) => {
     const hit = cache.current.get(d);
@@ -109,11 +147,11 @@ export function MapPage() {
   const sourceFor = (fam: string) => sources.find((s) => s.family === fam);
   const primary = sourceFor(meta.primary_family ?? "");
   const layerSource = (l: DataLayer) =>
-    l === "none" || l === "relief" ? undefined : l === "disp" ? primary : sources.find((s) => LAYER_KEY[l].some((k) => s.family.includes(k)));
+    l === "none" || l === "relief" ? undefined : l === "disp" || l === "cum" ? primary : sources.find((s) => LAYER_KEY[l].some((k) => s.family.includes(k)));
 
   return (
     <>
-      <MapView data={data} bbox={meta.district?.bbox ?? null} events={events} changed={changed} />
+      <MapView data={data} bbox={meta.district?.bbox ?? null} events={events} changed={changed} terrain={terrain} />
 
       <div className="ov ov-counters">
         <GlassPanel accent index="01" title={t("map.counters")} stagger={0} style={{ display: "flex", flexDirection: "column", minHeight: 0 }}>
@@ -187,7 +225,7 @@ export function MapPage() {
               </div>
             )}
             <hr style={{ border: 0, borderTop: "1px solid var(--neon-dim)", margin: "10px 0" }} />
-            {(["none", "disp", "sm", "precip", "veg", "relief"] as DataLayer[]).map((l) => (
+            {(["none", "cum", "disp", "sm", "precip"] as DataLayer[]).map((l) => (
               <label className="layer-row" key={l}>
                 <input type="radio" name="data-layer" checked={dataLayer === l} onChange={() => st.setDataLayer(l)} />
                 {t(`map.layer.${l}`)}
@@ -208,6 +246,11 @@ export function MapPage() {
                 {t("map.layer.events")} ({events.features.length})
               </label>
             )}
+            <div className="map-tools">
+              <button className="btn sm" aria-pressed={terrain} onClick={() => setTerrain(!terrain)}>
+                ⛰ {t("map.3d")}
+              </button>
+            </div>
             <p className="small muted" style={{ margin: "6px 0 0" }}>
               {t("map.basemap")}
             </p>
@@ -226,9 +269,14 @@ export function MapPage() {
       <div className={`ov ov-cycle ${selectedCell ? "with-drawer" : ""}`}>
         <GlassPanel stagger={2} label={t("map.cycle")}>
           <div className="cycle-bar">
-            <button className="btn sm" aria-label={t("map.prev")} disabled={!cycleIdx} onClick={() => st.setCycleIdx(Math.max(0, (cycleIdx ?? 0) - 1))}>
-              ‹
-            </button>
+            <div style={{ display: "flex", gap: 6 }}>
+              <button className={`btn sm ${playing ? "" : "primary"}`} onClick={play} aria-label={playing ? t("tm.pause") : t("tm.play")} title={t("tm.hint")}>
+                {playing ? "❚❚" : "▶"}
+              </button>
+              <button className="btn sm" aria-label={t("map.prev")} disabled={!cycleIdx} onClick={() => st.setCycleIdx(Math.max(0, (cycleIdx ?? 0) - 1))}>
+                ‹
+              </button>
+            </div>
             <div>
               <div className="caps muted" style={{ textAlign: "center" }}>
                 {t("map.cycle")} · <span className="date">{cycle}</span>

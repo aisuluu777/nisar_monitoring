@@ -20,6 +20,7 @@ from app.auth import Principal, check_district, create_token, get_principal, req
 from app.db import get_db
 from app.routers.common import latest_date, passport, product_passports, status_dates
 from app.routers.entities import DECIDERS, STAFF
+from app.routers.misc import APPROVERS
 
 router = APIRouter(prefix="/api/v1", tags=["webfront"])
 
@@ -222,6 +223,11 @@ def cells(on: date | None = Query(None, alias="date"), status: str | None = None
         select(m.Observation.entity_id, m.Observation.signal, m.Observation.value, m.Observation.reliable_frac)
         .join(m.Cell, m.Cell.id == m.Observation.entity_id)
         .where(m.Observation.entity_type == "cell", m.Cell.district_id == did, m.Observation.obs_date == d))}
+    cum = dict(db.execute(
+        select(m.Observation.entity_id, func.sum(m.Observation.value))
+        .join(m.Cell, m.Cell.id == m.Observation.entity_id)
+        .where(m.Observation.entity_type == "cell", m.Observation.signal == SIG_DISP, m.Cell.district_id == did,
+               m.Observation.obs_date <= d).group_by(m.Observation.entity_id)).all())
     base = {((e, s), mo): (md, mad) for e, s, mo, md, mad in db.execute(
         select(m.Baseline.entity_id, m.Baseline.signal, m.Baseline.month, m.Baseline.median, m.Baseline.mad)
         .join(m.Cell, m.Cell.id == m.Baseline.entity_id)
@@ -235,6 +241,7 @@ def cells(on: date | None = Query(None, alias="date"), status: str | None = None
             "id": cid, "village": None, "status": st_out(s), "stale": False,
             "disp_cm": None if disp is None else round(disp / 10, 3),
             "disp_z": _baseline_z(base, (cid, SIG_DISP), d.month, disp),
+            "cum_cm": None if cum.get(cid) is None else round(cum[cid] / 10, 2),
             "precip_mm": p30, "precip_z": _baseline_z(base, (cid, SIG_P30), d.month, p30),
             "sm": sm, "veg": None, "valid_frac": rf, "elev": 0, "slope": 0}})
     return {"type": "FeatureCollection", "features": feats, "cycle": _ds(d),
@@ -455,6 +462,24 @@ def decide(cell_id: str, body: DecisionIn, p: Principal = Depends(require(*DECID
 def handoff(cell_id: str, body: HandoffIn, p: Principal = Depends(require(*DECIDERS)), db: Session = Depends(get_db)):
     x = _save(db, cell_id, p, "handoff", body.comment, body.cycle)
     return {"ts": x.created_at.isoformat(), "user": p.username, "comment": x.comment, "cycle": _ds(x.status_date)}
+
+
+@router.post("/cells/{cell_id}/bulletin/approve")
+def approve_bulletin(cell_id: str, cycle: str | None = None, lang: str = "ru",
+                     p: Principal = Depends(require(*APPROVERS)), db: Session = Depends(get_db)):
+    """Утверждает тексты ячейки за цикл. Бюллетени есть только на русском, поэтому lang не фильтрует."""
+    c = _cell(db, cell_id, p)
+    d = date.fromisoformat(cycle) if cycle else latest_date(db, c.district_id)
+    rows = db.scalars(select(m.Bulletin).where(m.Bulletin.entity_type == "cell", m.Bulletin.entity_id == cell_id,
+                                               m.Bulletin.status_date == d)).all()
+    if not rows:
+        raise HTTPException(404, "для этой ячейки и цикла нет бюллетеня")
+    if not all((b.check or {}).get("ok") for b in rows):
+        raise HTTPException(409, "текст не прошёл автоматическую проверку и не может быть утверждён")
+    for b in rows:
+        b.approval, b.approved_by = "approved", p.user_id
+    db.commit()
+    return {"approved": [b.id for b in rows], "cycle": str(d)}
 
 
 @router.get("/admin/pipeline-runs")

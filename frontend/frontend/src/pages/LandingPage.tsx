@@ -3,9 +3,10 @@ import "maplibre-gl/dist/maplibre-gl.css";
 import { useEffect, useRef, useState } from "react";
 import { api, unwrap, type Summary } from "../api/client";
 import { GlassPanel } from "../components/hud";
+import { startStory } from "../components/Story";
 import { Term } from "../components/Term";
 import { GIBS, GIBS_ATTRIBUTION, gibsUrl } from "../map/config";
-import { prefersReducedMotion, useStore, useT, type User } from "../store";
+import { prefersReducedMotion, useStore, useT } from "../store";
 
 function PreviewMap({ districtId, bbox }: { districtId: string; bbox: number[] }) {
   const ref = useRef<HTMLDivElement>(null);
@@ -79,7 +80,7 @@ const TaskList = () => (
 
 export function LandingPage() {
   const t = useT();
-  const { meta, navigate, login, lang } = useStore();
+  const { meta, navigate, lang } = useStore();
   const [sum, setSum] = useState<Summary | null>(null);
   const did = meta?.district?.id;
 
@@ -91,21 +92,6 @@ export function LandingPage() {
       .then(setSum)
       .catch(() => setSum(null));
   }, [did, meta?.data_mode]);
-
-  async function story() {
-    // Демо-история: вход под ролью администрации → экран «Сегодня» → обучение
-    try {
-      const acc = unwrap(await api.GET("/api/v1/auth/demo-accounts"));
-      const a = acc.find((x) => x.role === "district_admin");
-      if (!a) throw new Error("no account");
-      const r = unwrap(await api.POST("/api/v1/auth/login", { body: { username: a.username, password: a.password } }));
-      login(r.access_token, r.user as User);
-      navigate("/today");
-      useStore.getState().setTourOpen(true);
-    } catch {
-      navigate("/login");
-    }
-  }
 
   const d = meta?.district;
   const name = d ? (lang === "ky" ? d.name_ky : lang === "en" ? d.name_en ?? d.name_ru : d.name_ru) : "";
@@ -121,7 +107,7 @@ export function LandingPage() {
             <h1>{t("land.title")}</h1>
             <p className="sub">{t("land.sub")}</p>
             <div className="cta">
-              <button className="btn primary lg" onClick={story}>
+              <button className="btn primary lg" onClick={startStory}>
                 ▶ {t("land.cta.story")}
               </button>
               <button className="btn lg" onClick={() => navigate("/login")}>

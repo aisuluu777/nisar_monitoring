@@ -87,6 +87,23 @@ export function CellCard({ cellId, cycle, onClose, onSteps }: { cellId: string; 
   const [comment, setComment] = useState("");
   const [busy, setBusy] = useState(false);
   const [sent, setSent] = useState<string | null>(null);
+  const [near, setNear] = useState<{ objects: Record<string, number>; computed: boolean; source: string } | null>(null);
+
+  useEffect(() => {
+    api.GET("/api/v1/cells/{cell_id}/nearby", { params: { path: { cell_id: cellId } } }).then(unwrap).then((r) => setNear(r as never)).catch(() => setNear(null));
+  }, [cellId]);
+
+  async function approve() {
+    setBusy(true);
+    try {
+      unwrap(await api.POST("/api/v1/cells/{cell_id}/bulletin/approve", { params: { path: { cell_id: cellId }, query: { cycle, lang } } }));
+      setSent(t("card.approved"));
+    } catch (e) {
+      setErr((e as Error).message);
+    } finally {
+      setBusy(false);
+    }
+  }
 
   const load = useCallback(async () => {
     setErr(null);
@@ -217,6 +234,27 @@ export function CellCard({ cellId, cycle, onClose, onSteps }: { cellId: string; 
                 </div>
               </section>
 
+              {/* «Что рядом» — объекты OSM в 500 м */}
+              {near && (
+                <section className="card-sec">
+                  <h3>{t("near.title")}</h3>
+                  {!near.computed ? (
+                    <p className="small muted" style={{ margin: 0 }}>{t("near.not_computed")}</p>
+                  ) : Object.keys(near.objects).length === 0 ? (
+                    <p className="small muted" style={{ margin: 0 }}>{t("near.none")}</p>
+                  ) : (
+                    <div className="near-chips">
+                      {Object.entries(near.objects).map(([k, v]) => (
+                        <span key={k} className="badge">
+                          <b className="mono">{v}</b> {t(`near.${k}`)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
+                  <p className="small muted" style={{ margin: "4px 0 0" }}>{near.source}</p>
+                </section>
+              )}
+
               {/* 4. Действие */}
               <section className="card-sec actions">
                 <p className="small muted" style={{ margin: 0 }}>
@@ -234,6 +272,9 @@ export function CellCard({ cellId, cycle, onClose, onSteps }: { cellId: string; 
                   )}
                   {user?.role === "mchs" && (
                     <>
+                      <button className="btn" disabled={busy} onClick={approve}>
+                        ✎ {t("card.approve")}
+                      </button>
                       <button className="btn primary" disabled={busy} onClick={() => decide("confirmed")}>
                         ✓ {t("card.confirm")}
                       </button>
@@ -300,6 +341,7 @@ export function CellCard({ cellId, cycle, onClose, onSteps }: { cellId: string; 
                     <h3>{t("card.layers")}</h3>
                     <LayerStack />
                   </section>
+                  {card.cell.elev_mean > 0 && (
                   <section className="card-sec">
                     <h3>{t("card.terrain")}</h3>
                     <p className="mono small muted" style={{ margin: 0 }}>
@@ -314,6 +356,7 @@ export function CellCard({ cellId, cycle, onClose, onSteps }: { cellId: string; 
                       })}
                     </p>
                   </section>
+                  )}
                   <details className="passport">
                     <summary>
                       {t("card.passport")} · <Term k="provisional" />

@@ -31,7 +31,9 @@ export function SummaryPage() {
   return (
     <div className="page">
       <div className="page-inner">
-        <h1 className="page-title">{t("summary.title")}</h1>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" }}>
+          <h1 className="page-title">{t("summary.title")}</h1>
+        </div>
         {err && <ErrorBox message={err} onRetry={retry} />}
         {!data && !err && <Skeleton rows={6} />}
         {data && (

@@ -3,10 +3,8 @@ import { useStore, useT, type DataLayer } from "../store";
 
 const LAYERS: { key: Exclude<DataLayer, "none">; ramp: keyof typeof RAMPS }[] = [
   { key: "precip", ramp: "precip" },
-  { key: "veg", ramp: "veg" },
   { key: "sm", ramp: "sm" },
   { key: "disp", ramp: "disp" },
-  { key: "relief", ramp: "relief" },
 ];
 
 /** Изометрическая «этажерка» слоёв: плитки раздвигаются при наведении, клик включает слой на карте. */

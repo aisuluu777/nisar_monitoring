@@ -35,7 +35,20 @@ export const STATUS_COLORS = { green: "#3DDC97", yellow: "#FFC94D", red: "#FF6B5
  */
 export type Ramp = { stops: [number, string][]; unit: string; fmt: (v: number) => string };
 
-export const RAMPS: Record<"disp" | "sm" | "precip" | "veg" | "relief" | "relief_grey", Ramp> = {
+export const RAMPS: Record<"disp" | "cum" | "sm" | "precip" | "veg" | "relief" | "relief_grey", Ramp> = {
+  cum: {
+    stops: [
+      [-5, "#19E3FF"],
+      [-2, "#1597B8"],
+      [-0.5, "#183A52"],
+      [0, "#1B2838"],
+      [0.5, "#4A2A55"],
+      [2, "#B03CA8"],
+      [5, "#FF4FD8"],
+    ],
+    unit: "см",
+    fmt: (v) => v.toFixed(0),
+  },
   disp: {
     stops: [
       [-2, "#19E3FF"],

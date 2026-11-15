@@ -6,7 +6,8 @@ import { prefersReducedMotion, useStore } from "../store";
 import { GIBS, GIBS_ATTRIBUTION, RAMPS, STATUS_COLORS, gibsUrl, rampExpression } from "./config";
 
 const EMPTY: GeoJSON.FeatureCollection = { type: "FeatureCollection", features: [] };
-const DATA_PROP = { disp: "disp_cm", sm: "sm", precip: "precip_mm", veg: "veg", relief: "elev" } as const;
+const DATA_PROP = { disp: "disp_cm", cum: "cum_cm", sm: "sm", precip: "precip_mm", veg: "veg", relief: "elev" } as const;
+const TERRAIN_URL = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{z}/{x}/{y}.png";
 const FADE_MS = 200;
 
 export function MapView(props: {
@@ -16,6 +17,8 @@ export function MapView(props: {
   changed: string[];
   /** Отступы при подгонке карты к району; по умолчанию — под панели экрана карты */
   padding?: number;
+  /** 3D-рельеф (MapLibre terrain, AWS Terrain Tiles / Mapzen terrarium) */
+  terrain?: boolean;
 }) {
   const ref = useRef<HTMLDivElement>(null);
   const mapRef = useRef<MLMap | null>(null);
@@ -179,6 +182,24 @@ export function MapView(props: {
       map.setLayoutProperty("events", "visibility", showEvents && props.events ? "visible" : "none");
     });
   }, [props.events, showEvents]);
+
+  // --- 3D-склон ---------------------------------------------------------------------
+  useEffect(() => {
+    whenReady(() => {
+      const map = mapRef.current!;
+      if (props.terrain) {
+        if (!map.getSource("dem"))
+          map.addSource("dem", { type: "raster-dem", tiles: [TERRAIN_URL], tileSize: 256, encoding: "terrarium", maxzoom: 14, attribution: "Terrain: AWS Terrain Tiles (Mapzen/SRTM et al.)" });
+        map.setTerrain({ source: "dem", exaggeration: 1.6 });
+        map.setMaxPitch(75);
+        map.easeTo({ pitch: 62, bearing: -25, duration: reduced ? 0 : 1200 });
+        map.dragRotate.enable();
+      } else if (map.getTerrain()) {
+        map.setTerrain(null);
+        map.easeTo({ pitch: 0, bearing: 0, duration: reduced ? 0 : 800 });
+      }
+    });
+  }, [props.terrain, reduced]);
 
   // --- выбранная ячейка: пульсирующий неоновый контур ------------------------------
   useEffect(() => {

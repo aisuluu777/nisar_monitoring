@@ -1,6 +1,7 @@
 /** Клиент API: типы генерируются из OpenAPI (npm run gen:api → src/api/schema.d.ts). */
 import createClient, { type Middleware } from "openapi-fetch";
 import type { components, paths } from "./schema";
+import { STATIC, staticFetch } from "./static";
 
 export type Schemas = components["schemas"];
 export type Meta = Schemas["Meta"];
@@ -64,7 +65,7 @@ const auth: Middleware = {
   },
 };
 
-export const api = createClient<paths>({ baseUrl: "" });
+export const api = createClient<paths>(STATIC ? { baseUrl: window.location.origin, fetch: staticFetch } : { baseUrl: "" });
 api.use(auth);
 
 export class ApiError extends Error {
@@ -90,4 +91,31 @@ export async function fetchCells(date?: string): Promise<CellsFC> {
 export async function fetchEvents(): Promise<GeoJSON.FeatureCollection> {
   const r = await api.GET("/api/v1/events");
   return unwrap(r) as unknown as GeoJSON.FeatureCollection;
+}
+
+
+/** Заголовки авторизации и режима — для загрузок, которые идут не через openapi-fetch (PDF, картинки). */
+export function authHeaders(): Record<string, string> {
+  const h: Record<string, string> = {};
+  if (token) h.Authorization = "Bearer " + token;
+  if (dataMode) h["X-Data-Mode"] = dataMode;
+  return h;
+}
+
+/** Открыть PDF из API в новой вкладке (с токеном). */
+export async function openPdf(path: string) {
+  if (STATIC) throw new ApiError(501, "PDF формируется сервером — доступен в полной версии (python tasks.py real)");
+  const r = await fetch(path, { headers: authHeaders() });
+  if (!r.ok) throw new ApiError(r.status, "HTTP " + r.status);
+  const url = URL.createObjectURL(await r.blob());
+  window.open(url, "_blank", "noopener");
+  setTimeout(() => URL.revokeObjectURL(url), 60_000);
+}
+
+/** Картинка из API с токеном → objectURL. */
+export async function fetchImage(path: string): Promise<string> {
+  if (STATIC) return "./static-api/rtc/" + path.split("/").pop();
+  const r = await fetch(path, { headers: authHeaders() });
+  if (!r.ok) throw new ApiError(r.status, "HTTP " + r.status);
+  return URL.createObjectURL(await r.blob());
 }

@@ -1,8 +1,15 @@
 import { create } from "zustand";
 import { setDataModeHeader, setToken, type Meta, type StatusCode } from "./api/client";
 import { translate, type Lang } from "./i18n";
+import { STATIC } from "./api/static";
 
-export type DataLayer = "none" | "disp" | "sm" | "precip" | "veg" | "relief";
+/** В статической версии маршрут хранится в hash (#today), на сервере — в пути (/today). */
+function currentPath(): string {
+  if (STATIC) return "/" + window.location.hash.replace(/^#/, "");
+  return window.location.pathname;
+}
+
+export type DataLayer = "none" | "disp" | "cum" | "sm" | "precip" | "veg" | "relief";
 export interface User {
   id: number;
   username: string;
@@ -40,6 +47,9 @@ interface State {
   dataMode: "real" | "demo" | null;
   focus: { lon: number; lat: number; id: string } | null;
   tourOpen: boolean;
+  storyStep: number | null;
+  storyPaused: boolean;
+  storyPlay: number;
   token: string | null;
   user: User | null;
   meta: Meta | null;
@@ -71,16 +81,19 @@ export const useStore = create<State>((set) => ({
   dataMode: savedMode,
   focus: null,
   tourOpen: false,
+  storyStep: null,
+  storyPaused: false,
+  storyPlay: 0,
   token: savedAuth?.token ?? null,
   user: savedAuth?.user ?? null,
   meta: null,
-  path: window.location.pathname,
+  path: currentPath(),
   cycleIdx: null,
   showStatus: true,
   dataLayer: "none",
   showEvents: false,
   statusFilter: null,
-  selectedCell: null,
+  selectedCell: new URLSearchParams(window.location.search).get("cell"),
   setLang: (lang) => {
     save("local", "sw.lang", lang);
     document.documentElement.lang = lang;
@@ -106,7 +119,10 @@ export const useStore = create<State>((set) => ({
   },
   setMeta: (meta) => set((s) => ({ meta, cycleIdx: s.cycleIdx ?? (meta.cycles.length ? meta.cycles.length - 1 : null) })),
   navigate: (path) => {
-    if (path !== window.location.pathname) window.history.pushState({}, "", path);
+    if (STATIC) {
+      const h = path === "/" ? "" : path.slice(1);
+      if (window.location.hash.replace(/^#/, "") !== h) window.location.hash = h;
+    } else if (path !== window.location.pathname) window.history.pushState({}, "", path);
     set({ path });
   },
   setCycleIdx: (cycleIdx) => set({ cycleIdx }),
@@ -117,7 +133,8 @@ export const useStore = create<State>((set) => ({
   selectCell: (selectedCell) => set({ selectedCell }),
 }));
 
-window.addEventListener("popstate", () => useStore.setState({ path: window.location.pathname }));
+window.addEventListener("popstate", () => useStore.setState({ path: currentPath() }));
+window.addEventListener("hashchange", () => STATIC && useStore.setState({ path: currentPath() }));
 
 export function useT() {
   const lang = useStore((s) => s.lang);
